@@ -1,4 +1,5 @@
 import json
+import os.path
 from typing import List
 
 
@@ -29,6 +30,9 @@ class Storage:
 
 
 def create_storage(path: str, version: str):
+    if os.path.isfile(path):
+        print("[Warning]: The storage.json file already exists")
+        return
     storage = Storage(version, []).to_dict()
     str_json = json.dumps(storage)
     with open(path, "wt") as file:
