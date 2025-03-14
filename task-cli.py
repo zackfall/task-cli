@@ -1,5 +1,4 @@
 import json
-import logging
 import os.path
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
@@ -7,49 +6,8 @@ from datetime import datetime
 from typing import List
 
 
-def setup_daily_logger():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    log_dir = os.path.join(base_dir, "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
-    current_time = datetime.now().strftime("%m_%d_%y_%I_%M_%p")
-    log_file = os.path.join(log_dir, f"{current_time}.log")
-
-    logging.basicConfig(
-        filename=log_file,
-        level=logging.DEBUG,
-        format="%(asctime)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s",
-        filemode="w",
-        encoding="utf-8",
-    )
-
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
-        "%(asctime)s - [%(levelname)s] - %(filename)s:%(lineno)d - %(message)s"
-    )  # Added line number
-    console_handler.setFormatter(console_formatter)
-
-    logging.getLogger().addHandler(console_handler)
-
-    return logging.getLogger(__name__)
-
-
-logger = setup_daily_logger()
-
 STORAGE_PATH = "./storage.json"
 VERSION = "0.0.1"
-HELP_MESSAGE = """
-Usage:
-    task-cli.py init
-    task-cli.py add <description>
-    task-cli.py list
-    task-cli.py update <id> <description>
-    task-cli.py check <id>
-    task-cli.py progress <id>
-    task-cli.py uncheck <id>
-    task-cli.py delete <id>
-"""
 
 
 @dataclass
@@ -82,21 +40,20 @@ class App:
 
     def create_storage(self):
         if os.path.isfile(self.storage_path):
-            logger.error("The storage.json file already exists")
             return
 
         storage = Storage(self.version, []).to_dict()
         str_json = json.dumps(storage)
         with open(self.storage_path, "wt") as file:
             file.write(str_json)
+        print(f"Storage created succesfully in {self.storage_path}")
 
     def get_storage(self) -> Storage:
         if not os.path.isfile(self.storage_path):
-            logger.info("Storage file does not exist. Creating a new one...")
             self.create_storage()
-
         with open(self.storage_path, "r") as file:
             content = json.loads(file.read())
+        # This iterate over the tasks in content and then all dicts in task are expanded inside tha Task object
         tasks = [Task(**task) for task in content["tasks"]]
         return Storage(version=content["version"], tasks=tasks)
 
@@ -147,15 +104,6 @@ class App:
                 break
         self.update_storage(storage)
 
-    def uncheck_undone(self, task_id: int):
-        storage = self.get_storage()
-        for task in storage.tasks:
-            if task.id == task_id:
-                task.status = "todo"
-                task.updated_at = datetime.now().isoformat()
-                break
-        self.update_storage(storage)
-
     def delete_task(self, task_id: int):
         storage = self.get_storage()
         storage.tasks = [task for task in storage.tasks if task.id != task_id]
@@ -166,10 +114,17 @@ def setup():
     parser = ArgumentParser(
         prog="Task CLI", description="A task manager in the CLI, easy to use."
     )
-    parser.add_argument("init")
-    parser.add_argument("add")
+    parser.add_argument("add", nargs="*", help="Add a Task")
+    parser.add_argument("update", nargs="*", help="Update a Task")
+    parser.add_argument("remove", nargs="*", help="Remove a Task")
+    parser.add_argument("mark-done", nargs="*", help="Mark a Task as done")
+    parser.add_argument("mark-progress", nargs="*", help="Mark a Task as in progress")
+    parser.add_argument("list", nargs="*", help="List all tasks")
+    parser.add_argument("list-done", nargs="*", help="List all tasks that are done")
+    parser.add_argument("list-progress", nargs="*", help="List all tasks that are in progress")
+    parser.add_argument("list-todo", nargs="*", help="List all tasks that aren't done")
     args = parser.parse_args()
-    print(args.init)
+    print(args.add)
     # app = App(STORAGE_PATH, VERSION)
 
 
